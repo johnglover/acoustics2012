@@ -17,6 +17,12 @@ Dependencies
 * [simpl](http://simplsound.sourceforge.net) (and all related dependencies)
 
 
+Annotated Samples
+-----------------
+
+The set of annotated samples is available at
+[https://github.com/downloads/johnglover/acoustics2012/samples.hdf5](https://github.com/downloads/johnglover/acoustics2012/samples.hdf5)
+
 Use
 ---
 
