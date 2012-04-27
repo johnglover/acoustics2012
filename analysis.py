@@ -1,0 +1,196 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from clint.textui import progress, puts, indent
+import yaml
+import modal
+import notesegmentation as ns
+
+cbr_analysis = True
+glt_analysis = True
+
+
+# ----------------------------------------------------------------------------
+# Analyse audio samples
+# ----------------------------------------------------------------------------
+print 'Analysing samples...'
+
+samples = modal.db.samples(attribute_name='notes', attribute_value=1)
+
+c_deviations = {}
+glt_deviations = {}
+
+if cbr_analysis or glt_analysis:
+    for i in progress.bar(samples):
+        audio = samples[i]['samples']
+        transients = ns.partial_stability.get_transients(audio, samples[i])
+
+        if cbr_analysis:
+            try:
+                c = ns.segmentation.cbr(audio, samples[i])
+                note = c[0]
+                c_deviations[i] = {
+                    'onset': int(np.abs(note['onset']-samples[i]['onsets'][0])),
+                    'sustain': int(np.abs(note['sustain']-samples[i]['sustains'][0])),
+                    'release': int(np.abs(note['release']-samples[i]['releases'][0])),
+                    'offset': int(np.abs(note['offset']-samples[i]['offsets'][0])),
+                    'partial_stability': int(np.abs(note['sustain']-transients[0]['end'])) if transients else 0
+                }
+            except ns.segmentation.NoOnsetsFound:
+                print 'Warning: ignoring %s (no onsets found)' % i
+
+        if glt_analysis:
+            try:
+                g = ns.segmentation.glt(audio, samples[i])
+                note = g[0]
+                glt_deviations[i] = {
+                    'onset': int(np.abs(note['onset']-samples[i]['onsets'][0])),
+                    'sustain': int(np.abs(note['sustain']-samples[i]['sustains'][0])),
+                    'release': int(np.abs(note['release']-samples[i]['releases'][0])),
+                    'offset': int(np.abs(note['offset']-samples[i]['offsets'][0])),
+                    'partial_stability': int(np.abs(note['sustain']-transients[0]['end'])) if transients else 0
+                }
+            except ns.segmentation.NoOnsetsFound:
+                print 'Warning: ignoring %s (no onsets found)' % i
+
+# ----------------------------------------------------------------------------
+# Calculate deviations from reference values
+# ----------------------------------------------------------------------------
+print 'Calculating results...'
+
+if cbr_analysis:
+    with open('cbr_deviations.yaml', 'w') as f:
+        f.write(yaml.dump(c_deviations))
+else:
+    with open('cbr_deviations.yaml', 'r') as f:
+        c_deviations = yaml.load(f.read())
+
+c_avg_deviations = {
+    'Onset': 0.0,
+    'Sustain': 0.0,
+    'Release': 0.0,
+    'Offset': 0.0,
+    'Partial Stability': 0.0
+}
+for i in c_deviations:
+    c_avg_deviations['Onset'] += c_deviations[i]['onset']
+    c_avg_deviations['Sustain'] += c_deviations[i]['sustain']
+    c_avg_deviations['Release'] += c_deviations[i]['release']
+    c_avg_deviations['Offset'] += c_deviations[i]['offset']
+    c_avg_deviations['Partial Stability'] += c_deviations[i]['partial_stability']
+for i in c_avg_deviations:
+    c_avg_deviations[i] /= len(c_deviations)
+
+print
+print 'Average deviation from reference values (in ms) for Caetano, Burred and Rodet method:'
+with indent(4):
+    for k, v in c_avg_deviations.iteritems():
+        puts("%s: %.1f" % (k, v / 44.1))
+
+if glt_analysis:
+    with open('glt_deviations.yaml', 'w') as f:
+        f.write(yaml.dump(glt_deviations))
+else:
+    with open('glt_deviations.yaml', 'r') as f:
+        glt_deviations = yaml.load(f.read())
+
+glt_avg_deviations = {
+    'Onset': 0.0,
+    'Sustain': 0.0,
+    'Release': 0.0,
+    'Offset': 0.0,
+    'Partial Stability': 0.0
+}
+for i in glt_deviations:
+    glt_avg_deviations['Onset'] += glt_deviations[i]['onset']
+    glt_avg_deviations['Sustain'] += glt_deviations[i]['sustain']
+    glt_avg_deviations['Release'] += glt_deviations[i]['release']
+    glt_avg_deviations['Offset'] += glt_deviations[i]['offset']
+    glt_avg_deviations['Partial Stability'] += glt_deviations[i]['partial_stability']
+for i in glt_avg_deviations:
+    glt_avg_deviations[i] /= len(glt_deviations)
+
+print
+print 'Average deviation from reference values (in ms) for Glover, Lazzarini and Timoney method:'
+with indent(4):
+    for k, v in glt_avg_deviations.iteritems():
+        puts("%s: %.1f" % (k, v / 44.1))
+
+# ----------------------------------------------------------------------------
+# Calculate accuracy
+# ----------------------------------------------------------------------------
+max_deviation_ms = 100
+max_deviation = (44100.0 / 1000) * max_deviation_ms
+
+cbr_correct = {
+    'onset': 0,
+    'sustain': 0,
+    'release': 0,
+    'offset': 0,
+    'partial_stability': 0
+}
+for boundary in cbr_correct:
+    for sample in c_deviations:
+        if c_deviations[sample][boundary] <= max_deviation:
+            cbr_correct[boundary] += 1
+    cbr_correct[boundary] = (float(cbr_correct[boundary]) / len(samples)) * 100
+
+
+glt_correct = {
+    'onset': 0,
+    'sustain': 0,
+    'release': 0,
+    'offset': 0,
+    'partial_stability': 0
+}
+for boundary in glt_correct:
+    for sample in glt_deviations:
+        if glt_deviations[sample][boundary] <= max_deviation:
+            glt_correct[boundary] += 1
+    glt_correct[boundary] = (float(glt_correct[boundary]) / len(samples)) * 100
+
+print
+print 'Percentage within 100 ms of reference samples for Caetano, Burred and Rodet method:'
+with indent(4):
+    for k, v in cbr_correct.iteritems():
+        puts("%s: %.1f" % (k, v))
+print
+print 'Percentage within 100 ms of reference samples for Glover, Lazzarini and Timoney method:'
+with indent(4):
+    for k, v in glt_correct.iteritems():
+        puts("%s: %.1f" % (k, v))
+
+
+# ----------------------------------------------------------------------------
+# Plot results
+# ----------------------------------------------------------------------------
+
+fig = plt.figure(1, figsize=(12, 8))
+plt.title('Avg. Deviation From Reference Values (in samples)')
+ax = plt.axes()
+ax.autoscale(False, 'y')
+
+width = 0.4
+indexes = np.arange(len(c_avg_deviations))
+
+max_deviation = max([i for i in (c_avg_deviations.values() + glt_avg_deviations.values())])
+ax.set_ylim(0.0, max_deviation + (max_deviation * 0.1))
+
+c_bars = ax.bar(indexes, c_avg_deviations.values(), width, color='#9baca1')
+for bar in c_bars:
+    height = bar.get_height()
+    ax.text(bar.get_x() + bar.get_width() / 2., height + 500, '%.1f' % height,
+            ha='center', va='bottom')
+
+glt_bars = ax.bar(indexes + width, glt_avg_deviations.values(), width, color='#81aac4', hatch='')
+for bar in glt_bars:
+    height = bar.get_height()
+    ax.text(bar.get_x() + bar.get_width() / 2., height + 500, '%.1f' % height,
+            ha='center', va='bottom')
+
+ax.set_ylabel('Deviation (in samples)')
+ax.set_xlabel('Segmentation boundary')
+ax.set_xticks(indexes + 0.4)
+ax.set_xticklabels(c_avg_deviations.keys())
+ax.legend((c_bars[0], glt_bars[0]),
+          ('Caetano, Burred and Rodet', 'Glover, Lazzarini and Timoney'))
+plt.savefig('results.png')
