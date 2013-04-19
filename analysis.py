@@ -182,20 +182,28 @@ if plot_results:
     width = 0.4
     indexes = np.arange(len(c_avg_deviations))
 
-    max_deviation = max([i for i in (c_avg_deviations.values() + glt_avg_deviations.values())])
+    max_deviation = max([i for i in (c_avg_deviations.values() +
+                                     glt_avg_deviations.values())])
     ax.set_ylim(0.0, max_deviation + (max_deviation * 0.1))
 
     c_bars = ax.bar(indexes, c_avg_deviations.values(), width, color='#9baca1')
     for bar in c_bars:
         height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width() / 2., height + 500, '%.1f' % height,
-                ha='center', va='bottom')
+        ax.text(bar.get_x() + bar.get_width() / 2.,
+                height + 500,
+                '%.1f' % height,
+                ha='center',
+                va='bottom')
 
-    glt_bars = ax.bar(indexes + width, glt_avg_deviations.values(), width, color='#81aac4', hatch='')
+    glt_bars = ax.bar(indexes + width, glt_avg_deviations.values(), width,
+                      color='#81aac4', hatch='')
     for bar in glt_bars:
         height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width() / 2., height + 500, '%.1f' % height,
-                ha='center', va='bottom')
+        ax.text(bar.get_x() + bar.get_width() / 2.,
+                height + 500,
+                '%.1f' % height,
+                ha='center',
+                va='bottom')
 
     ax.set_ylabel('Deviation (in samples)')
     ax.set_xlabel('Segmentation boundary')
