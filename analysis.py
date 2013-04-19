@@ -9,6 +9,25 @@ cbr_analysis = True
 glt_analysis = True
 
 
+def deviations(detected, reference, transients):
+    result = {'onset': int(np.abs(detected['onset'] -
+                                  reference['onsets'][0])),
+              'sustain': int(np.abs(detected['sustain'] -
+                                    reference['sustains'][0])),
+              'release': int(np.abs(detected['release'] -
+                                    reference['releases'][0])),
+              'offset': int(np.abs(detected['offset'] -
+                                   reference['offsets'][0]))}
+
+    if transients:
+        result['partial_stability'] = int(np.abs(detected['sustain'] -
+                                                 transients[0]['end']))
+    else:
+        result['partial_stability'] = 0
+
+    return result
+
+
 # ----------------------------------------------------------------------------
 # Analyse audio samples
 # ----------------------------------------------------------------------------
@@ -20,40 +39,28 @@ c_deviations = {}
 glt_deviations = {}
 
 if cbr_analysis or glt_analysis:
-    for i in progress.bar(samples):
-        audio = samples[i]['samples']
-        transients = ns.partial_stability.get_transients(audio, samples[i])
+    for file in progress.bar(samples):
+        audio = samples[file]['samples']
+        transients = ns.partial_stability.get_transients(audio, samples[file])
 
         if cbr_analysis:
             try:
-                c = ns.segmentation.cbr(audio, samples[i])
-                note = c[0]
-                c_deviations[i] = {
-                    'onset': int(np.abs(note['onset']-samples[i]['onsets'][0])),
-                    'sustain': int(np.abs(note['sustain']-samples[i]['sustains'][0])),
-                    'release': int(np.abs(note['release']-samples[i]['releases'][0])),
-                    'offset': int(np.abs(note['offset']-samples[i]['offsets'][0])),
-                    'partial_stability': int(np.abs(note['sustain']-transients[0]['end'])) if transients else 0
-                }
+                note = ns.segmentation.cbr(audio, samples[file])[0]
+                c_deviations[file] = deviations(note, samples[file],
+                                                transients)
             except ns.segmentation.NoOnsetsFound:
-                print 'Warning: ignoring %s (no onsets found)' % i
+                print 'Warning: ignoring %s (no onsets found)' % file
 
         if glt_analysis:
             try:
-                g = ns.segmentation.glt(audio, samples[i])
-                note = g[0]
-                glt_deviations[i] = {
-                    'onset': int(np.abs(note['onset']-samples[i]['onsets'][0])),
-                    'sustain': int(np.abs(note['sustain']-samples[i]['sustains'][0])),
-                    'release': int(np.abs(note['release']-samples[i]['releases'][0])),
-                    'offset': int(np.abs(note['offset']-samples[i]['offsets'][0])),
-                    'partial_stability': int(np.abs(note['sustain']-transients[0]['end'])) if transients else 0
-                }
+                note = ns.segmentation.rtsegmentation(audio, samples[file])[0]
+                glt_deviations[file] = deviations(note, samples[file],
+                                                  transients)
             except ns.segmentation.NoOnsetsFound:
-                print 'Warning: ignoring %s (no onsets found)' % i
+                print 'Warning: ignoring %s (no onsets found)' % file
 
 # ----------------------------------------------------------------------------
-# Calculate deviations from reference values
+# Calculate average deviations from reference values
 # ----------------------------------------------------------------------------
 print 'Calculating results...'
 
