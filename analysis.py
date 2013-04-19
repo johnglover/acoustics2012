@@ -5,9 +5,16 @@ import yaml
 import modal
 import notesegmentation as ns
 
+
+# ----------------------------------------------------------------------------
+# Config
+# ----------------------------------------------------------------------------
 cbr_analysis = True
 glt_analysis = True
+plot_results = False
 
+
+# ----------------------------------------------------------------------------
 
 def deviations(detected, reference, transients):
     result = {'onset': int(np.abs(detected['onset'] -
@@ -59,17 +66,24 @@ if cbr_analysis or glt_analysis:
             except ns.segmentation.NoOnsetsFound:
                 print 'Warning: ignoring %s (no onsets found)' % file
 
-# ----------------------------------------------------------------------------
-# Calculate average deviations from reference values
-# ----------------------------------------------------------------------------
-print 'Calculating results...'
-
 if cbr_analysis:
     with open('cbr_deviations.yaml', 'w') as f:
         f.write(yaml.dump(c_deviations))
 else:
     with open('cbr_deviations.yaml', 'r') as f:
         c_deviations = yaml.load(f.read())
+
+if glt_analysis:
+    with open('glt_deviations.yaml', 'w') as f:
+        f.write(yaml.dump(glt_deviations))
+else:
+    with open('glt_deviations.yaml', 'r') as f:
+        glt_deviations = yaml.load(f.read())
+
+# ----------------------------------------------------------------------------
+# Calculate average deviations from reference values
+# ----------------------------------------------------------------------------
+print 'Calculating results...'
 
 c_avg_deviations = {
     'Onset': 0.0,
@@ -88,17 +102,12 @@ for i in c_avg_deviations:
     c_avg_deviations[i] /= len(c_deviations)
 
 print
-print 'Average deviation from reference values (in ms) for Caetano, Burred and Rodet method:'
+print 'Average deviation from reference values (in ms) for Caetano, Burred ',
+print 'and Rodet method:'
 with indent(4):
     for k, v in c_avg_deviations.iteritems():
         puts("%s: %.1f" % (k, v / 44.1))
 
-if glt_analysis:
-    with open('glt_deviations.yaml', 'w') as f:
-        f.write(yaml.dump(glt_deviations))
-else:
-    with open('glt_deviations.yaml', 'r') as f:
-        glt_deviations = yaml.load(f.read())
 
 glt_avg_deviations = {
     'Onset': 0.0,
@@ -117,7 +126,8 @@ for i in glt_avg_deviations:
     glt_avg_deviations[i] /= len(glt_deviations)
 
 print
-print 'Average deviation from reference values (in ms) for Glover, Lazzarini and Timoney method:'
+print 'Average deviation from reference values (in ms) for Glover, Lazzarini ',
+print 'and Timoney method:'
 with indent(4):
     for k, v in glt_avg_deviations.iteritems():
         puts("%s: %.1f" % (k, v / 44.1))
@@ -156,12 +166,14 @@ for boundary in glt_correct:
     glt_correct[boundary] = (float(glt_correct[boundary]) / len(samples)) * 100
 
 print
-print 'Percentage within 100 ms of reference samples for Caetano, Burred and Rodet method:'
+print 'Percentage within 100 ms of reference samples for Caetano, Burred and ',
+print 'Rodet method:'
 with indent(4):
     for k, v in cbr_correct.iteritems():
         puts("%s: %.1f" % (k, v))
 print
-print 'Percentage within 100 ms of reference samples for Glover, Lazzarini and Timoney method:'
+print 'Percentage within 100 ms of reference samples for Glover, Lazzarini ',
+print 'and Timoney method:'
 with indent(4):
     for k, v in glt_correct.iteritems():
         puts("%s: %.1f" % (k, v))
@@ -170,34 +182,34 @@ with indent(4):
 # ----------------------------------------------------------------------------
 # Plot results
 # ----------------------------------------------------------------------------
+if plot_results:
+    fig = plt.figure(1, figsize=(12, 8))
+    plt.title('Avg. Deviation From Reference Values (in samples)')
+    ax = plt.axes()
+    ax.autoscale(False, 'y')
 
-fig = plt.figure(1, figsize=(12, 8))
-plt.title('Avg. Deviation From Reference Values (in samples)')
-ax = plt.axes()
-ax.autoscale(False, 'y')
+    width = 0.4
+    indexes = np.arange(len(c_avg_deviations))
 
-width = 0.4
-indexes = np.arange(len(c_avg_deviations))
+    max_deviation = max([i for i in (c_avg_deviations.values() + glt_avg_deviations.values())])
+    ax.set_ylim(0.0, max_deviation + (max_deviation * 0.1))
 
-max_deviation = max([i for i in (c_avg_deviations.values() + glt_avg_deviations.values())])
-ax.set_ylim(0.0, max_deviation + (max_deviation * 0.1))
+    c_bars = ax.bar(indexes, c_avg_deviations.values(), width, color='#9baca1')
+    for bar in c_bars:
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2., height + 500, '%.1f' % height,
+                ha='center', va='bottom')
 
-c_bars = ax.bar(indexes, c_avg_deviations.values(), width, color='#9baca1')
-for bar in c_bars:
-    height = bar.get_height()
-    ax.text(bar.get_x() + bar.get_width() / 2., height + 500, '%.1f' % height,
-            ha='center', va='bottom')
+    glt_bars = ax.bar(indexes + width, glt_avg_deviations.values(), width, color='#81aac4', hatch='')
+    for bar in glt_bars:
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2., height + 500, '%.1f' % height,
+                ha='center', va='bottom')
 
-glt_bars = ax.bar(indexes + width, glt_avg_deviations.values(), width, color='#81aac4', hatch='')
-for bar in glt_bars:
-    height = bar.get_height()
-    ax.text(bar.get_x() + bar.get_width() / 2., height + 500, '%.1f' % height,
-            ha='center', va='bottom')
-
-ax.set_ylabel('Deviation (in samples)')
-ax.set_xlabel('Segmentation boundary')
-ax.set_xticks(indexes + 0.4)
-ax.set_xticklabels(c_avg_deviations.keys())
-ax.legend((c_bars[0], glt_bars[0]),
-          ('Caetano, Burred and Rodet', 'Glover, Lazzarini and Timoney'))
-plt.savefig('results.png')
+    ax.set_ylabel('Deviation (in samples)')
+    ax.set_xlabel('Segmentation boundary')
+    ax.set_xticks(indexes + 0.4)
+    ax.set_xticklabels(c_avg_deviations.keys())
+    ax.legend((c_bars[0], glt_bars[0]),
+              ('Caetano, Burred and Rodet', 'Glover, Lazzarini and Timoney'))
+    plt.savefig('results.png')
