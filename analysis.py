@@ -54,6 +54,11 @@ def avg_deviations(deviations):
             for b in boundaries}
 
 
+def std_deviations(deviations):
+    return {b: np.std([deviations[f][b] for f in deviations])
+            for b in boundaries}
+
+
 def accuracy(match_time, deviations, samples):
     max_deviation = (44100.0 / 1000) * match_time
     result = {b: 0 for b in boundaries}
@@ -141,21 +146,27 @@ else:
 print 'Calculating results...'
 
 c_avg_deviations = avg_deviations(c_deviations)
+c_std_deviations = std_deviations(c_deviations)
 glt_avg_deviations = avg_deviations(glt_deviations)
+glt_std_deviations = std_deviations(glt_deviations)
 
 print
 print 'Average deviation from reference values (in ms) for Caetano, Burred ',
-print 'and Rodet method:'
+print 'and Rodet method'
+print '(standard deviations are in brackets):'
 with indent(4):
     for k, v in c_avg_deviations.iteritems():
-        puts('{0}: {1:.2f}'.format(k, v / 44.1))
+        puts('{0}: {1:.2f} ({2:.2f})'.format(k, v / 44.1,
+                                             c_std_deviations[k] / 44.1))
 
 print
 print 'Average deviation from reference values (in ms) for Glover, Lazzarini ',
-print 'and Timoney method:'
+print 'and Timoney method'
+print '(standard deviations are in brackets):'
 with indent(4):
     for k, v in glt_avg_deviations.iteritems():
-        puts('{0}: {1:.2f}'.format(k, v / 44.1))
+        puts('{0}: {1:.2f} ({2:.2f})'.format(k, v / 44.1,
+                                             glt_std_deviations[k] / 44.1))
 
 # ----------------------------------------------------------------------------
 # Calculate accuracy (%)
