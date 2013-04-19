@@ -13,6 +13,10 @@ cbr_analysis = True
 glt_analysis = True
 plot_results = False
 
+# boundary is said to be correctly detected if it lies within this time
+# duration of the reference value
+match_time_ms = 100
+
 
 # ----------------------------------------------------------------------------
 
@@ -51,6 +55,23 @@ def avg_deviations(deviations):
 
     for k in result:
         result[k] /= len(deviations)
+
+    return result
+
+
+def accuracy(match_time, deviations, samples):
+    max_deviation = (44100.0 / 1000) * match_time
+    result = {'onset': 0,
+              'sustain': 0,
+              'release': 0,
+              'offset': 0,
+              'partial_stability': 0}
+
+    for boundary in result:
+        for sample in deviations:
+            if deviations[sample][boundary] <= max_deviation:
+                result[boundary] += 1
+        result[boundary] = (float(result[boundary]) / len(samples)) * 100
 
     return result
 
@@ -126,47 +147,21 @@ with indent(4):
 # ----------------------------------------------------------------------------
 # Calculate accuracy
 # ----------------------------------------------------------------------------
-max_deviation_ms = 100
-max_deviation = (44100.0 / 1000) * max_deviation_ms
 
-cbr_correct = {
-    'onset': 0,
-    'sustain': 0,
-    'release': 0,
-    'offset': 0,
-    'partial_stability': 0
-}
-for boundary in cbr_correct:
-    for sample in c_deviations:
-        if c_deviations[sample][boundary] <= max_deviation:
-            cbr_correct[boundary] += 1
-    cbr_correct[boundary] = (float(cbr_correct[boundary]) / len(samples)) * 100
-
-
-glt_correct = {
-    'onset': 0,
-    'sustain': 0,
-    'release': 0,
-    'offset': 0,
-    'partial_stability': 0
-}
-for boundary in glt_correct:
-    for sample in glt_deviations:
-        if glt_deviations[sample][boundary] <= max_deviation:
-            glt_correct[boundary] += 1
-    glt_correct[boundary] = (float(glt_correct[boundary]) / len(samples)) * 100
+cbr_accuracy = accuracy(match_time_ms, c_deviations, samples)
+glt_accuracy = accuracy(match_time_ms, glt_deviations, samples)
 
 print
 print 'Percentage within 100 ms of reference samples for Caetano, Burred and ',
 print 'Rodet method:'
 with indent(4):
-    for k, v in cbr_correct.iteritems():
+    for k, v in cbr_accuracy.iteritems():
         puts("%s: %.1f" % (k, v))
 print
 print 'Percentage within 100 ms of reference samples for Glover, Lazzarini ',
 print 'and Timoney method:'
 with indent(4):
-    for k, v in glt_correct.iteritems():
+    for k, v in glt_accuracy.iteritems():
         puts("%s: %.1f" % (k, v))
 
 
