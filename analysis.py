@@ -145,21 +145,21 @@ with indent(4):
         puts("%s: %.1f" % (k, v / 44.1))
 
 # ----------------------------------------------------------------------------
-# Calculate accuracy
+# Calculate accuracy (%)
 # ----------------------------------------------------------------------------
 
 cbr_accuracy = accuracy(match_time_ms, c_deviations, samples)
 glt_accuracy = accuracy(match_time_ms, glt_deviations, samples)
 
 print
-print 'Percentage within 100 ms of reference samples for Caetano, Burred and ',
-print 'Rodet method:'
+print 'Percentage within', match_time_ms, 'ms of reference samples for ',
+print 'Caetano, Burred and Rodet method:'
 with indent(4):
     for k, v in cbr_accuracy.iteritems():
         puts("%s: %.1f" % (k, v))
 print
-print 'Percentage within 100 ms of reference samples for Glover, Lazzarini ',
-print 'and Timoney method:'
+print 'Percentage within', match_time_ms, 'ms of reference samples for ',
+print 'Glover, Lazzarini and Timoney method:'
 with indent(4):
     for k, v in glt_accuracy.iteritems():
         puts("%s: %.1f" % (k, v))
