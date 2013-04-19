@@ -17,8 +17,18 @@ plot_results = False
 # duration of the reference value
 match_time_ms = 100
 
+sound_types = ['Non-Pitched Percussive',
+               'Pitched Percussive',
+               'Pitched Non-Percussive']
+
+boundaries = ['onset',
+              'sustain',
+              'release',
+              'offset',
+              'partial_stability']
 
 # ----------------------------------------------------------------------------
+
 
 def deviations(detected, reference, transients):
     result = {'onset': int(np.abs(detected['onset'] -
@@ -40,18 +50,11 @@ def deviations(detected, reference, transients):
 
 
 def avg_deviations(deviations):
-    result = {'Onset': 0.0,
-              'Sustain': 0.0,
-              'Release': 0.0,
-              'Offset': 0.0,
-              'Partial Stability': 0.0}
+    result = {b: 0 for b in boundaries}
 
     for file in deviations:
-        result['Onset'] += deviations[file]['onset']
-        result['Sustain'] += deviations[file]['sustain']
-        result['Release'] += deviations[file]['release']
-        result['Offset'] += deviations[file]['offset']
-        result['Partial Stability'] += deviations[file]['partial_stability']
+        for b in boundaries:
+            result[b] += deviations[file][b]
 
     for k in result:
         result[k] /= len(deviations)
@@ -61,17 +64,35 @@ def avg_deviations(deviations):
 
 def accuracy(match_time, deviations, samples):
     max_deviation = (44100.0 / 1000) * match_time
-    result = {'onset': 0,
-              'sustain': 0,
-              'release': 0,
-              'offset': 0,
-              'partial_stability': 0}
+    result = {b: 0 for b in boundaries}
 
     for boundary in result:
         for sample in deviations:
             if deviations[sample][boundary] <= max_deviation:
                 result[boundary] += 1
         result[boundary] = (float(result[boundary]) / len(samples)) * 100
+
+    return result
+
+
+def accuracy_by_sound_type(match_time, deviations, samples):
+    max_deviation = (44100.0 / 1000) * match_time
+    result = {t: {b: 0 for b in boundaries} for t in sound_types}
+    sound_type_counts = {t: 0 for t in sound_types}
+
+    for sample in deviations:
+        sound_type = samples[sample]['type']
+        for boundary in boundaries:
+            if deviations[sample][boundary] <= max_deviation:
+                result[sound_type][boundary] += 1
+        sound_type_counts[sound_type] += 1
+
+    for sound_type in result:
+        for boundary in result[sound_type]:
+            result[sound_type][boundary] = (
+                float(result[sound_type][boundary]) /
+                sound_type_counts[sound_type]
+            ) * 100
 
     return result
 
@@ -135,14 +156,14 @@ print 'Average deviation from reference values (in ms) for Caetano, Burred ',
 print 'and Rodet method:'
 with indent(4):
     for k, v in c_avg_deviations.iteritems():
-        puts("%s: %.1f" % (k, v / 44.1))
+        puts('{0}: {1:.2f}'.format(k, v / 44.1))
 
 print
 print 'Average deviation from reference values (in ms) for Glover, Lazzarini ',
 print 'and Timoney method:'
 with indent(4):
     for k, v in glt_avg_deviations.iteritems():
-        puts("%s: %.1f" % (k, v / 44.1))
+        puts('{0}: {1:.2f}'.format(k, v / 44.1))
 
 # ----------------------------------------------------------------------------
 # Calculate accuracy (%)
@@ -156,13 +177,45 @@ print 'Percentage within', match_time_ms, 'ms of reference samples for ',
 print 'Caetano, Burred and Rodet method:'
 with indent(4):
     for k, v in cbr_accuracy.iteritems():
-        puts("%s: %.1f" % (k, v))
+        puts('{0}: {1:.2f}'.format(k, v))
 print
 print 'Percentage within', match_time_ms, 'ms of reference samples for ',
 print 'Glover, Lazzarini and Timoney method:'
 with indent(4):
     for k, v in glt_accuracy.iteritems():
-        puts("%s: %.1f" % (k, v))
+        puts('{0}: {1:.2f}'.format(k, v))
+
+
+# ----------------------------------------------------------------------------
+# Calculate accuracy (%) by sound type
+# ----------------------------------------------------------------------------
+
+c_accuracy_by_sound_type = accuracy_by_sound_type(
+    match_time_ms, c_deviations, samples)
+glt_accuracy_by_sound_type = accuracy_by_sound_type(
+    match_time_ms, glt_deviations, samples)
+
+print
+print 'Percentage within', match_time_ms, 'ms of reference samples for ',
+print 'Caetano, Burred and Rodet method (by sound type):'
+for sound_type in sound_types:
+    with indent(4):
+        puts('{0}:'.format(sound_type))
+    for boundary in boundaries:
+        with indent(8):
+            puts('{0}: {1:.2f}'.format(
+                boundary, c_accuracy_by_sound_type[sound_type][boundary]))
+
+print
+print 'Percentage within', match_time_ms, 'ms of reference samples for ',
+print 'Glover, Lazzarini and Timoney method (by sound type):'
+for sound_type in sound_types:
+    with indent(4):
+        puts('{0}:'.format(sound_type))
+    for boundary in boundaries:
+        with indent(8):
+            puts('{0}: {1:.2f}'.format(
+                boundary, glt_accuracy_by_sound_type[sound_type][boundary]))
 
 
 # ----------------------------------------------------------------------------

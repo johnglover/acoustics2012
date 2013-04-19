@@ -26,6 +26,7 @@ The set of annotated samples is available at
 Use
 ---
 
-Run:
+Set the MODAL_ONSETS_PATH environment variable to point to the location of
+the set of annotated samples. Then, run:
 
     $ python analysis.py 
