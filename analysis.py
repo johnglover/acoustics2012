@@ -50,16 +50,8 @@ def deviations(detected, reference, transients):
 
 
 def avg_deviations(deviations):
-    result = {b: 0 for b in boundaries}
-
-    for file in deviations:
-        for b in boundaries:
-            result[b] += deviations[file][b]
-
-    for k in result:
-        result[k] /= len(deviations)
-
-    return result
+    return {b: np.mean([deviations[f][b] for f in deviations])
+            for b in boundaries}
 
 
 def accuracy(match_time, deviations, samples):
