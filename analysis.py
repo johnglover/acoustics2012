@@ -35,6 +35,26 @@ def deviations(detected, reference, transients):
     return result
 
 
+def avg_deviations(deviations):
+    result = {'Onset': 0.0,
+              'Sustain': 0.0,
+              'Release': 0.0,
+              'Offset': 0.0,
+              'Partial Stability': 0.0}
+
+    for file in deviations:
+        result['Onset'] += deviations[file]['onset']
+        result['Sustain'] += deviations[file]['sustain']
+        result['Release'] += deviations[file]['release']
+        result['Offset'] += deviations[file]['offset']
+        result['Partial Stability'] += deviations[file]['partial_stability']
+
+    for k in result:
+        result[k] /= len(deviations)
+
+    return result
+
+
 # ----------------------------------------------------------------------------
 # Analyse audio samples
 # ----------------------------------------------------------------------------
@@ -80,26 +100,14 @@ else:
     with open('glt_deviations.yaml', 'r') as f:
         glt_deviations = yaml.load(f.read())
 
+
 # ----------------------------------------------------------------------------
 # Calculate average deviations from reference values
 # ----------------------------------------------------------------------------
 print 'Calculating results...'
 
-c_avg_deviations = {
-    'Onset': 0.0,
-    'Sustain': 0.0,
-    'Release': 0.0,
-    'Offset': 0.0,
-    'Partial Stability': 0.0
-}
-for i in c_deviations:
-    c_avg_deviations['Onset'] += c_deviations[i]['onset']
-    c_avg_deviations['Sustain'] += c_deviations[i]['sustain']
-    c_avg_deviations['Release'] += c_deviations[i]['release']
-    c_avg_deviations['Offset'] += c_deviations[i]['offset']
-    c_avg_deviations['Partial Stability'] += c_deviations[i]['partial_stability']
-for i in c_avg_deviations:
-    c_avg_deviations[i] /= len(c_deviations)
+c_avg_deviations = avg_deviations(c_deviations)
+glt_avg_deviations = avg_deviations(glt_deviations)
 
 print
 print 'Average deviation from reference values (in ms) for Caetano, Burred ',
@@ -107,23 +115,6 @@ print 'and Rodet method:'
 with indent(4):
     for k, v in c_avg_deviations.iteritems():
         puts("%s: %.1f" % (k, v / 44.1))
-
-
-glt_avg_deviations = {
-    'Onset': 0.0,
-    'Sustain': 0.0,
-    'Release': 0.0,
-    'Offset': 0.0,
-    'Partial Stability': 0.0
-}
-for i in glt_deviations:
-    glt_avg_deviations['Onset'] += glt_deviations[i]['onset']
-    glt_avg_deviations['Sustain'] += glt_deviations[i]['sustain']
-    glt_avg_deviations['Release'] += glt_deviations[i]['release']
-    glt_avg_deviations['Offset'] += glt_deviations[i]['offset']
-    glt_avg_deviations['Partial Stability'] += glt_deviations[i]['partial_stability']
-for i in glt_avg_deviations:
-    glt_avg_deviations[i] /= len(glt_deviations)
 
 print
 print 'Average deviation from reference values (in ms) for Glover, Lazzarini ',
